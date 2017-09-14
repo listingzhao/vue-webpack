@@ -1,0 +1,82 @@
+# 这里使用了我自己的docker image，配置了自己需要的环境
+image: listing/ci-node
+cache:
+  paths:
+  - node_modules/
+stages:
+- build
+- eslint
+- deploy_staging
+- deploy_production
+- analysis
+# before_script:
+build:
+  stage: build
+  script:
+  - npm install -g cnpm --registry=https://registry.npm.taobao.org
+  - cnpm install
+  - npm run build
+  only:
+    - dev
+eslint_src:
+  stage: eslint
+  script:
+  # - npm install -g cnpm --registry=https://registry.npm.taobao.org
+  # - cnpm install
+  - npm run lint
+  allow_failure: true
+  only:
+    - dev
+# 部署测试服务器
+deploy_staging:
+  stage: deploy_staging
+  script:
+    - echo 'Deploy to staging server'
+    - npm run build
+    - 'cp -rf /builds/FE/vue-webpack-template/dist/. /data/nginx/vue-template/staging/html'
+  environment:
+    name: staging
+    url: http://172.16.2.201:9000
+  only:
+  - dev
+# 部署生产服务器
+deploy_production:
+  stage: deploy_production
+  script:
+    - echo 'Deploy to production server'
+    - npm run build
+    - 'cp -rf /builds/FE/vue-webpack-template/dist/. /data/nginx/vue-template/production/html'
+  environment:
+    name: production
+    url: http://172.16.2.201:8500
+  only:
+  - master
+
+# sonarqube
+sonarqube:
+  stage: analysis
+  image: ciricihq/gitlab-sonar-scanner
+  variables:
+    SONAR_URL: "http://sonar.mofang.com"
+    SONAR_PROJECT_KEY: "vue-webpack:master"
+    SONAR_SOURCES: "src"
+    SONAR_PROJECT_VERSION: "$CI_BUILD_ID"
+    SONAR_ANALYSIS_MODE: "issues"
+  script:
+  - /usr/bin/sonar-scanner-run.sh
+  only:
+  - dev
+
+sonarqube-reports:
+  stage: analysis
+  image: ciricihq/gitlab-sonar-scanner
+  variables:
+    SONAR_URL: "http://sonar.mofang.com"
+    SONAR_PROJECT_KEY: "vue-webpack:master"
+    SONAR_SOURCES: "src"
+    SONAR_PROJECT_VERSION: "$CI_BUILD_ID"
+    SONAR_ANALYSIS_MODE: "publish"
+  script:
+  - unset CI_BUILD_REF && /usr/bin/sonar-scanner-run.sh
+  only:
+  - dev

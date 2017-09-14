@@ -1,0 +1,11 @@
+[
+  {
+    "message": "Hello Vue.js!"
+  },
+  {
+    "message": "Foo"
+  },
+  {
+    "message": "Bar"
+  }
+]
